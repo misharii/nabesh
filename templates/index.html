@@ -1,74 +1,30 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لعبة نابش</title>
-    <!-- Bootstrap CSS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"><link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa+Ink:wght@400;700&family=Mirza:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% extends "layout.html" %}
 
-    <style>
+{% block title %}لعبة نابش{% endblock %}
 
-        .list-group {
-    padding-right: 0 !important;
-}
+{% block header %}لعبة نابش{% endblock %}
 
-@font-face {
-            font-family: 'watad';
-            src: url('{{ url_for('static', filename='fonts/watad.otf') }}') format('opentype');
-        }
-
-        body{
-            background-color: #121212;
-            color: #ffffff; /* White text for visibility */
-            font-family: 'watad', serif;
-            font-size: 100% ;
-        }
-        span{
-            font-family: 'watad', serif;
-            font-size: 120% ;
-        }
-
-        h2, h1 {
-            font-family: 'Aref Ruqaa Ink', serif;
-            font-size: xxx-large;
-        }
-        .form-control {
-            background-color: #333333;
-            border-color: #666666;
-            color: #ffffff; /* White text for inputs */
-        }
-        .list-group-item {
-            background-color: #222222;
-            border-color: #444444;
-            {#position: relative; /* Needed for absolute positioning of ranking text */#}
-            color: #ffffff; /* White text for list items */
-         }
-        .progress {
-            background-color: #343a40; /* Dark background for the progress bar */
-         }
+{% block content %}
 
 
 
 
-        .alert {
-            background-color: #343a40; /* Darker background for alerts */
-            color: #ffffff; /* White text for alerts */
-        }
-        ::placeholder {
-  color: white;
-}
-    </style>
-</head>
-
-<body >
-    <div class="container mt-5">
-        <h1 class="mb-4">لعبة نابش</h1>
         <!-- Guess Form -->
         <form action="/guess" method="POST" class="mb-3">
+       <div class="mb-3">
+        <label for="gameSelectDropdown" class="form-label">اختر رقم اللعبة</label>
+        <select id="gameSelectDropdown" name="target_id" class="form-control" onchange="selectGame()">
+            <option value="">اختر لعبة</option>
+            {% for target_id, target_text in games %}
+            <option value="{{ target_id }}" {{ 'selected' if target_id == session.get('target_id', None) else '' }} >{{ target_id }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+
+
+
+
             <div class="mb-3">
                 <input type="text" name="guess" class="form-control" placeholder="أدخل تخمينك هنا" >
             </div>
@@ -80,7 +36,8 @@
 
 
         {% if message %}
-            <div class="alert alert-secondry">{{ message }}</div>
+{#   you can add  'alert-game'  class to control the bg and font colors of the alert  #}
+            <div class="alert  alert-info">{{ message }}</div>
         {% endif %}
 
 {% if session.recent_guess and session.recent_ranking %}
@@ -112,30 +69,6 @@
         <ul class="list-group guesses-list justify-content-end pull-right container mt-3" style="text-align: right">
             {% for guess, ranking in guesses %}
 
-{#                <li class="list-group-item d-flex justify-content-between align-items-center">#}
-{#                    {{ guess }}#}
-{#                    <div class="w-50 position-relative"> <!-- Container for progress bar and ranking badge -->#}
-{#                        <div class="progress">#}
-{#                            <div class="progress-bar"#}
-{#                                role="progressbar"#}
-{#                                style="#}
-{#                                    width: {% if ranking <= 1250 %}{{ 100 - ((ranking - 1) / 1250 * 100) }}%{% else %}1%{% endif %};#}
-{#                                    {% if ranking <= 250 %}background-color: #28a745;#}
-{#                                    {% elif ranking <= 500 %}background-color: #80c904;#}
-{#                                    {% elif ranking <= 750 %}background-color: #ffbc44;#}
-{#                                    {% elif ranking <= 1000 %}background-color: #ff7700;#}
-{#                                    {% elif ranking <= 1250 %}background-color: #FF4500;#}
-{#                                    {% else %}background-color: #DC3545;#}
-{#                                    {% endif %}"#}
-{#                                aria-valuenow="{{ ranking }}"#}
-{#                                aria-valuemin="0"#}
-{#                                aria-valuemax="1250">#}
-{#                            </div>#}
-{#                            <span class="ranking-badge badge bg-transparent">{{ ranking }}</span>#}
-{#                        </div>#}
-{#                    </div>#}
-{#                #}
-{#                </li>#}
 
                 <li class="list-group-item d-flex justify-content-between align-items-center">
     <div class="progress" style="width: 100%; position: relative;">
@@ -154,8 +87,8 @@
              aria-valuemin="0"
              aria-valuemax="1250">
             <div class="d-flex justify-content-between w-100">
-                <span style="color: white;">&nbsp;{{ guess  }}&nbsp; </span>
-                <span style="color: white;"> &nbsp;{{  ranking }}&nbsp;</span>
+                <span  style="color: white;">&nbsp;{{ guess  }}&nbsp; </span>
+                <span class="ranking-badge" style="color: white;"> &nbsp;{{  ranking }}&nbsp;</span>
             </div>
         </div>
     </div>
@@ -174,6 +107,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+          <div class="tenor-gif-embed" style="color: white" data-postid="18892078" data-share-method="host" data-aspect-ratio="0.78125" data-width="100%"><a href="https://tenor.com/view/saudi-dance-saudi-dance-saudi-moment-gif-18892078">Saudi Dance GIF</a>from <a href="https://tenor.com/search/saudi-gifs">Saudi GIFs</a></div> <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+          <br>
           {% if guesses %}
         لقد فزت! الكلمة هي {{ guesses[0][0] }}.
           {% endif %}
@@ -184,30 +119,22 @@
     </div>
   </div>
 </div>
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.9/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
-<script>
 
-
-    $(document).ready(function() {
-        // Check if there's any ranking with 1
-        let hasRankingOne = false;
-        $('.ranking-badge').each(function() {
-            if ($(this).text().trim() === '1') {
-                hasRankingOne = true;
-            }
-        });
-
-        // If there is a ranking of 1, show the modal
-        if (hasRankingOne) {
-            $('#winnerModal').modal('show');
+ <script>
+    function selectGame() {
+        var selectedGameId = document.getElementById('gameSelectDropdown').value;
+        if (selectedGameId) {
+            window.location.href = '/start/' + selectedGameId;
         }
+    }
+
+// Use the Bootstrap 5 way of showing modals
+document.addEventListener('DOMContentLoaded', function() {
+    // The new Bootstrap 5 way to create a modal programmatically
+    var winnerModal = new bootstrap.Modal(document.getElementById('winnerModal'), {
+        keyboard: false
     });
 
-
-    document.addEventListener('DOMContentLoaded', function() {
     const guessForm = document.querySelector('.mb-3'); // Make sure this selector uniquely identifies your form
     const guessInput = guessForm.querySelector('input[name="guess"]');
 
@@ -219,8 +146,24 @@
             guessForm.submit(); // Submit the form
         }
     });
+
+    // Wait until all elements are loaded
+    window.onload = function() {
+        // Check if there's any ranking with 1
+        let hasRankingOne = false;
+        document.querySelectorAll('.ranking-badge').forEach(function(element) {
+            if (element.textContent.trim() === '1') {
+                hasRankingOne = true;
+            }
+        });
+
+        // If there is a ranking of 1, show the modal
+        if (hasRankingOne) {
+            winnerModal.show();
+        }
+    };
 });
 </script>
 
-</body>
-</html>
+
+{% endblock %}

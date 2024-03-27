@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="icon" href="/static/images/nabeshFavicon.png">
+    <title>{% block title %}لعبة نابش{% endblock title %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="btn-group">
+          <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Theme
+          </button>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="javascript:void(0);" onclick="toggleTheme()">Toggle Light/Dark</a></li>
+          </ul>
+        </div>
+</div>
+
+    <div class="container mt-5">
+     {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+        <h1 class="mb-4">{% block header %}لعبة نابش{% endblock header %}</h1>
+
+        {% block content %}{% endblock content %}
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+// Function to toggle between light and dark theme
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+  // Set the new theme in local storage
+  localStorage.setItem('theme', newTheme);
+
+  // Apply the new theme
+  applyTheme();
+}
+
+// Function to apply the theme based on local storage or default
+function applyTheme() {
+  // Get the theme from local storage or default to 'dark'
+  const storedTheme = localStorage.getItem('theme') || 'dark';
+
+  // Apply the theme by setting the data-theme attribute on the root element
+  document.documentElement.setAttribute('data-theme', storedTheme);
+}
+
+// Call applyTheme on page load to ensure the saved theme (if any) is applied
+document.addEventListener('DOMContentLoaded', applyTheme);
+</script>
+
+</body>
+</html>

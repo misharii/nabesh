@@ -1,0 +1,81 @@
+
+:root {
+    /* Dark theme as default */
+    --background-color: #121212;
+    --text-color: #ffffff;
+    --input-bg-color: #333333;
+    --input-border-color: #666666;
+    --list-item-bg-color: #222222;
+    --list-item-border-color: #444444;
+    --progress-bg-color: #343a40;
+    --alert-game-bg-color: #343a40;
+    --placeholder-color: #ffffff;
+}
+
+[data-theme="light"] {
+    /* Light theme overrides */
+    --background-color: #e6e3d7;
+    --text-color: #000000;
+    --input-bg-color: #ffffff;
+    --input-border-color: #e3e0c1;
+    --list-item-bg-color: #d5d1be;
+    --list-item-border-color: #e4e6e7;
+    --progress-bg-color: #939292;
+    --alert-game-bg-color: #f8f9fa;
+    --placeholder-color: #93999f;
+}
+
+/* Fonts */
+@font-face {
+    font-family: 'watad';
+    src: url('fonts/watad.otf') format('opentype');
+}
+
+@font-face {
+    font-family: 'ArefRuqaaInk';
+    src: url('fonts/ArefRuqaaInk-Regular.ttf') format('truetype');
+}
+
+/* Basic element styling */
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: 'watad', serif;
+    font-size: 100%;
+}
+
+span, ::placeholder {
+    font-family: 'watad', serif;
+    font-size: 120%;
+    color: var(--placeholder-color);
+}
+
+h2, h1 {
+    font-family: 'ArefRuqaaInk', serif;
+    font-size: xxx-large;
+}
+
+/* Form control styling */
+.form-control {
+    background-color: var(--input-bg-color);
+    border-color: var(--input-border-color);
+    color: var(--text-color);
+}
+
+/* List group item styling */
+.list-group-item {
+    background-color: var(--list-item-bg-color);
+    border-color: var(--list-item-border-color);
+    color: var(--text-color);
+}
+
+/* Progress bar styling */
+.progress {
+    background-color: var(--progress-bg-color);
+}
+
+/* Alert styling */
+.alert-game {
+    background-color: var(--alert-game-bg-color);
+    color: var(--text-color);
+}

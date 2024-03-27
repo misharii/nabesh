@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block title %}صفحة الإدارة{% endblock %}
+
+{% block header %}صفحة الإدارة{% endblock %}
+
+{% block content %}
+
+
+
+
+{#     <div class="container">#}
+{#    <!-- Word Count Input + Dynamic Word Inputs inside the form -->#}
+{#    <form id="wordForm" method="POST">#}
+{#        <div class="mb-3">#}
+{#            <label for="wordCount" class="form-label">أدخل عدد الكلمات التي تريد حساب ترتيبها وإضافتها إلى اللعبة</label>#}
+{#            <input type="number" class="form-control" id="wordCount" name="wordCount" min="1" oninput="createWordInputs()">#}
+{#        </div>#}
+{##}
+{#        <div id="wordInputs"></div> <!-- Dynamic Word Inputs will be inserted here -->#}
+{#        <button type="submit" class="btn btn-primary mt-3" id="submitBtn" style="display: none;">اضافة</button>#}
+{#    </form>#}
+{#</div>#}
+
+    <div class="container">
+    <form id="wordForm" method="POST" onsubmit="showLoading()">
+        <div class="mb-3">
+            <label for="wordCount" class="form-label">أدخل عدد الكلمات التي تريد حساب ترتيبها وإضافتها إلى اللعبة</label>
+            <input type="number" class="form-control" id="wordCount" name="wordCount" min="1" oninput="createWordInputs()">
+        </div>
+
+        <div id="wordInputs"></div> <!-- Dynamic Word Inputs will be inserted here -->
+        <button type="submit" class="btn btn-primary mt-3" id="submitBtn" style="display: none;">إضافة</button>
+    </form>
+</div>
+
+    <script>
+        function createWordInputs() {
+            const count = document.getElementById('wordCount').value;
+            const wordInputs = document.getElementById('wordInputs');
+            wordInputs.innerHTML = ''; // Clear previous inputs
+
+            if (count > 0) {
+                document.getElementById('submitBtn').style.display = 'block'; // Show submit button
+            } else {
+                document.getElementById('submitBtn').style.display = 'none'; // Hide submit button
+            }
+
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = 'word' + i;
+                input.placeholder = 'كلمة ' + (i + 1);
+                input.className = 'form-control mt-2';
+                input.required = true;
+                wordInputs.appendChild(input);
+            }
+        }
+        function showLoading() {
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true; // Disable the button to prevent multiple submissions
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> جاري الإضافة...';
+    // You might not need to manually revert this if the page reloads or navigates away after form submission.
+    // If the form submission is handled asynchronously, you'd want to revert this once the operation is complete.
+}
+    </script>
+
+
+
+{% endblock %}

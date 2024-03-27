@@ -1,153 +1,112 @@
-# precompute_embeddings.py
+# precompute.py
 
 import sqlite3
 import numpy as np
 import fasttext
 import time
-from arabicRootFinder import ArabicRootFinder
+from compute import SemanticSimilarity
 
-# Load your pre-trained FastText model
-model = fasttext.load_model('model/cc.ar.300.bin/cc.ar.300.bin')
+sim = SemanticSimilarity()
 
 
-def precompute_rankings(target_word, words, db_path='semantic_similarity.db'):
+def load_model(modelPath='model/cc.ar.300.bin/cc.ar.300.bin'):
+    begin_loading_model = time.time()
+    model = fasttext.load_model(modelPath)
+    end_loading_model = time.time()
+    load_time = end_loading_model - begin_loading_model
+    print(f"Loading the model completed in {load_time:.2f} seconds")
+    return model, load_time
+
+
+def precompute_rankings(target_words, words, db_path='semantic_similarity.db'):
+    model, model_load_time = load_model()  # Now captures load time as well
+
     start_time = time.time()  # Start timing
-    # Connect to the database
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
+    # Ensure tables exist
+    cursor.execute('''CREATE TABLE IF NOT EXISTS words (word_id INTEGER PRIMARY KEY AUTOINCREMENT, word_text TEXT UNIQUE)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS target (target_id INTEGER PRIMARY KEY AUTOINCREMENT, target_text TEXT UNIQUE)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS rankings (word_id INTEGER, target_id INTEGER, ranking INTEGER, PRIMARY KEY (word_id, target_id), FOREIGN KEY (word_id) REFERENCES words(word_id), FOREIGN KEY (target_id) REFERENCES target(target_id))''')
 
-    # Create a table for storing words and their rankings
-    cursor.execute('''CREATE TABLE IF NOT EXISTS word_rankings
-                      (word TEXT PRIMARY KEY, ranking INTEGER)''')
+    # Convert target_words to a list if it's a single string
+    if isinstance(target_words, str):
+        target_words = [target_words]
 
+    for target_word in target_words:
+        # Insert or ignore the target word and get its ID
+        cursor.execute('INSERT OR IGNORE INTO target (target_text) VALUES (?)', (target_word,))
+        cursor.execute('SELECT target_id FROM target WHERE target_text = ?', (target_word,))
+        target_id = cursor.fetchone()[0]
 
-    # Clear existing data in the word_rankings table
-    cursor.execute('DELETE FROM word_rankings')
+        # Compute embedding for the target word
+        target_embedding = model.get_word_vector(target_word)
 
+        # Directly insert the target word with rank 1
+        cursor.execute('INSERT OR IGNORE INTO words (word_text) VALUES (?)', (target_word,))
+        cursor.execute('SELECT word_id FROM words WHERE word_text = ?', (target_word,))
+        target_word_id = cursor.fetchone()[0]
+        cursor.execute('REPLACE INTO rankings (word_id, target_id, ranking) VALUES (?, ?, 1)', (target_word_id, target_id))
 
+        # Compute similarity for each non-target word and append
+        similarities = []
+        for word in [w for w in words if w != target_word]:
+            word_embedding = model.get_word_vector(word)
+            similarity = np.dot(target_embedding, word_embedding) / (np.linalg.norm(target_embedding) * np.linalg.norm(word_embedding))
+            similarities.append((word, similarity))
 
-    # Compute embedding for the target word
-    target_embedding = model.get_word_vector(target_word)
+        # Sort by similarity score in descending order
+        similarities.sort(key=lambda x: x[1], reverse=True)
 
-    # Compute similarity and collect scores
-    similarities = []
-    for word in words:
-        word_embedding = model.get_word_vector(word)
-        similarity = np.dot(target_embedding, word_embedding) / (np.linalg.norm(target_embedding) * np.linalg.norm(word_embedding))
-        similarities.append((word, similarity))
+        # Insert non-target words starting from rank 2
+        for rank, (word, _) in enumerate(similarities, start=2):  # Start enumeration from 2
+            cursor.execute('INSERT OR IGNORE INTO words (word_text) VALUES (?)', (word,))
+            cursor.execute('SELECT word_id FROM words WHERE word_text = ?', (word,))
+            word_id = cursor.fetchone()[0]
+            cursor.execute('REPLACE INTO rankings (word_id, target_id, ranking) VALUES (?, ?, ?)', (word_id, target_id, rank))
 
-    # Sort by similarity score in descending order
-    similarities.sort(key=lambda x: x[1], reverse=True)
-
-    # Store the rankings
-    for rank, (word, _) in enumerate(similarities, start=1):
-        cursor.execute('REPLACE INTO word_rankings (word, ranking) VALUES (?, ?)', (word, rank))
-
-    # Commit changes and close the connection
     conn.commit()
     conn.close()
     end_time = time.time()  # End timing
-    print(f"Ranking completed in {end_time - start_time:.2f} seconds")
-
-# def precompute_rankings(target_word, words, db_path='semantic_similarity.db'):
-#     start_time = time.time()  # Start timing
-#     # Connect to the database
-#     conn = sqlite3.connect(db_path)
-#     cursor = conn.cursor()
-#
-#     # Clear existing data in the word_rankings table
-#     cursor.execute('DELETE FROM word_rankings')
-#
-#     # Create a table for storing words and their rankings
-#     cursor.execute('''CREATE TABLE IF NOT EXISTS word_rankings
-#                       (word TEXT PRIMARY KEY, ranking INTEGER)''')
-#
-#     # Compute embedding for the target word
-#     target_embedding = model.get_word_vector(target_word)
-#
-#     # Compute similarity and collect scores
-#     similarities = []
-#     for word in words:
-#         word_embedding = model.get_word_vector(word)
-#         similarity = np.dot(target_embedding, word_embedding) / (np.linalg.norm(target_embedding) * np.linalg.norm(word_embedding))
-#         similarities.append((word, similarity))
-#
-#     # Sort by similarity score in descending order
-#     similarities.sort(key=lambda x: x[1], reverse=True)
-#
-#     # Store the rankings
-#     for rank, (word, _) in enumerate(similarities, start=1):
-#         cursor.execute('REPLACE INTO word_rankings (word, ranking) VALUES (?, ?)', (word, rank))
-#
-#     # Commit changes and close the connection
-#     conn.commit()
-#     conn.close()
-#     end_time = time.time()  # End timing
-#     print(f"Ranking completed in {end_time - start_time:.2f} seconds")
+    computation_time = end_time - start_time
+    print(f"Ranking completed in {computation_time:.2f} seconds for targets: {target_words}")
+    return model_load_time, computation_time
 
 
-# def precompute_rankings(target_word, db_path='semantic_similarity.db'):
-#     print("Starting precomputation...")
-#     start_time = time.time()
-#
-#     # Load the FastText model
-#     model = fasttext.load_model('model/cc.ar.300.bin/cc.ar.300.bin')
-#
-#     # Connect to the database
-#     conn = sqlite3.connect(db_path)
-#     cursor = conn.cursor()
-#
-#     # Create the table for word rankings, if it doesn't exist
-#     cursor.execute('''
-#         CREATE TABLE IF NOT EXISTS word_rankings (
-#             word TEXT PRIMARY KEY,
-#             ranking FLOAT
-#         )
-#     ''')
-#
-#     # Clear existing data in the table
-#     cursor.execute('DELETE FROM word_rankings')
-#
-#     # Get the target word embedding
-#     target_embedding = model.get_word_vector(target_word)
-#
-#     # Fetch the vocabulary from the FastText model
-#     words = model.get_words(on_unicode_error='ignore')
-#
-#     # Calculate and insert the similarity rankings
-#     for word in words:
-#         word_embedding = model.get_word_vector(word)
-#         similarity = np.dot(target_embedding, word_embedding) / (
-#             np.linalg.norm(target_embedding) * np.linalg.norm(word_embedding))
-#         # Ensure the similarity is stored as a float
-#         cursor.execute('INSERT INTO word_rankings (word, ranking) VALUES (?, ?)',
-#                        (word, int(similarity * 1000)))  # scaled to preserve precision
-#
-#     # Commit changes and close the connection
-#     conn.commit()
-#     conn.close()
-#
-#     print(f"Precomputation completed in {time.time() - start_time:.2f} seconds.")
+
+def wordlistOpentxt(wordlistPath='wordlist/ar-wordlist-stemmed.txt'):
+    word_list = []
+    with open(wordlistPath, 'r', encoding='utf-8') as file:
+        for line in file:
+            word = line.strip()
+            if word:
+                word_list.append(word)
+    return word_list
+
+
+def stem_words(target_words):
+
+    stemmed_target_words = []
+    for word in target_words:
+        stemmed_target_words.append(sim.stem_word(word))
+    return stemmed_target_words
+
+def stem_word(word):
+    stemmed_word = sim.stem_word(word)
+    return stemmed_word
+
+def get_ranking(stemmed_guess, current_target_id):
+    ranking = sim.get_ranking(stemmed_guess,current_target_id)
+    return ranking
 
 
 if __name__ == "__main__":
-    arabic_root_finder = ArabicRootFinder()
+    # sim = SemanticSimilarity()
+    target_words = ["سيارة", "بحر", "مدينة", "قهوة", "مطار"] # Your target word/s
 
-    target_word = "شمس"  # Your target word
-    # word_list = model.get_words()
-    # stemmed_word_list = arabic_root_finder.stem_word_list(word_list)
+    stemmed_target_words = stem_words(target_words)
 
-    word_list = []
-    with open('wordlist/ar-wordlist-stemmed.txt', 'r', encoding='utf-8') as file:
-        for line in file:
-            # Strip newline character and any leading/trailing whitespace
-            word = line.strip()
-            if word:  # Make sure the line is not empty
-                word_list.append(word)
+    precompute_rankings(stemmed_target_words, wordlistOpentxt)
 
-    precompute_rankings(target_word, word_list)
 
-# if __name__ == "__main__":
-#     target_word = "شبكة"  # Example target word
-#     precompute_rankings(target_word)
