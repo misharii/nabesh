@@ -4,17 +4,64 @@ import sqlite3
 import numpy as np
 import fasttext
 import time
-from compute import SemanticSimilarity
+from flask import flash
+from farasa.stemmer import FarasaStemmer
 
-sim = SemanticSimilarity()
+stemmer = FarasaStemmer(interactive=True)  # Initialize the Farasa stemmer and hold in Global variable
+model = None  # Global variable to hold the model
 
+def createDB(db_path='semantic_similarity.db'):
+    # Connect to the SQLite database at the specified path
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Create 'words' table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS words (
+        word_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        word_text TEXT UNIQUE
+    )''')
+
+    # Create 'target' table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS target (
+        target_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        target_text TEXT UNIQUE
+    )''')
+
+    # Create 'rankings' table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS rankings (
+        word_id INTEGER, 
+        target_id INTEGER, 
+        ranking INTEGER, 
+        PRIMARY KEY (word_id, target_id), 
+        FOREIGN KEY (word_id) REFERENCES words(word_id), 
+        FOREIGN KEY (target_id) REFERENCES target(target_id)
+    )''')
+
+    # Create 'admins' table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS admins (
+        username TEXT PRIMARY KEY, 
+        password TEXT, 
+        last_login TEXT
+    )''')
+
+    # Insert default admin account
+    cursor.execute('''INSERT OR IGNORE INTO admins (username, password) VALUES (?, ?)''', ('admin', 'nabesh'))
+
+    # Commit changes and close connection
+    conn.commit()
+    conn.close()
 
 def load_model(modelPath='model/cc.ar.300.bin/cc.ar.300.bin'):
-    begin_loading_model = time.time()
-    model = fasttext.load_model(modelPath)
-    end_loading_model = time.time()
-    load_time = end_loading_model - begin_loading_model
-    print(f"Loading the model completed in {load_time:.2f} seconds")
+    global model
+    if model is None:
+        begin_loading_model = time.time()
+        model = fasttext.load_model(modelPath)
+        end_loading_model = time.time()
+        load_time = end_loading_model - begin_loading_model
+        print(f"Loading the model completed in {load_time:.2f} seconds")
+        flash(f'Loading the model completed in {load_time:.2f} seconds', 'info')
+    else:
+        load_time   = 0  # Model was already loaded
     return model, load_time
 
 
@@ -22,13 +69,9 @@ def precompute_rankings(target_words, words, db_path='semantic_similarity.db'):
     model, model_load_time = load_model()  # Now captures load time as well
 
     start_time = time.time()  # Start timing
+    createDB(db_path)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
-    # Ensure tables exist
-    cursor.execute('''CREATE TABLE IF NOT EXISTS words (word_id INTEGER PRIMARY KEY AUTOINCREMENT, word_text TEXT UNIQUE)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS target (target_id INTEGER PRIMARY KEY AUTOINCREMENT, target_text TEXT UNIQUE)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS rankings (word_id INTEGER, target_id INTEGER, ranking INTEGER, PRIMARY KEY (word_id, target_id), FOREIGN KEY (word_id) REFERENCES words(word_id), FOREIGN KEY (target_id) REFERENCES target(target_id))''')
 
     # Convert target_words to a list if it's a single string
     if isinstance(target_words, str):
@@ -71,9 +114,9 @@ def precompute_rankings(target_words, words, db_path='semantic_similarity.db'):
     end_time = time.time()  # End timing
     computation_time = end_time - start_time
     print(f"Ranking completed in {computation_time:.2f} seconds for targets: {target_words}")
+    flash(f'Ranking completed in {computation_time:.2f} seconds for targets: {target_words}', 'success')
+
     return model_load_time, computation_time
-
-
 
 def wordlistOpentxt(wordlistPath='wordlist/ar-wordlist-stemmed.txt'):
     word_list = []
@@ -84,29 +127,46 @@ def wordlistOpentxt(wordlistPath='wordlist/ar-wordlist-stemmed.txt'):
                 word_list.append(word)
     return word_list
 
+def stem_word(word):
+    return stemmer.stem(word)
 
 def stem_words(target_words):
-
     stemmed_target_words = []
     for word in target_words:
-        stemmed_target_words.append(sim.stem_word(word))
+        stemmed_target_words.append(stemmer.stem(word))
     return stemmed_target_words
 
-def stem_word(word):
-    stemmed_word = sim.stem_word(word)
-    return stemmed_word
+def get_ranking(guess, target_id, db_path="semantic_similarity.db"):
+    """Retrieve the ranking for a word with respect to a specific target word identified by target_id."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+           SELECT r.ranking FROM rankings r
+           JOIN words w ON r.word_id = w.word_id
+           JOIN target t ON r.target_id = t.target_id
+           WHERE w.word_text = ? AND t.target_id = ?
+       ''', (guess, target_id))
+    ranking = cursor.fetchone()
+    conn.close()
+    return ranking[0] if ranking else None
 
-def get_ranking(stemmed_guess, current_target_id):
-    ranking = sim.get_ranking(stemmed_guess,current_target_id)
-    return ranking
+def get_all_target_words(db_path='semantic_similarity.db'):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM target')
+    result = cursor.fetchall()
+    conn.commit()
+    conn.close()
+    return result
 
 
 if __name__ == "__main__":
-    # sim = SemanticSimilarity()
     target_words = ["سيارة", "بحر", "مدينة", "قهوة", "مطار"] # Your target word/s
 
     stemmed_target_words = stem_words(target_words)
 
-    precompute_rankings(stemmed_target_words, wordlistOpentxt)
+    precompute_rankings(stemmed_target_words, wordlistOpentxt())
+
+
 
 

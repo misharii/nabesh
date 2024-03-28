@@ -1,4 +1,5 @@
 # ngrok http http://localhost:5000
+# flask run --host=0.0.0.0 --port=5000
 
 # app.py
 from flask import Flask, request, render_template, session, redirect, url_for, flash
@@ -16,8 +17,7 @@ app = Flask(__name__)
 # Configure your Flask app for session use, e.g., secret key and optionally Flask-Session settings
 app.config['SECRET_KEY'] = '123'
 app.config['SESSION_PERMANENT'] = True
-
-
+createDB()
 
 def login_required(f):
     @wraps(f)
@@ -37,7 +37,8 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        # Connect to your database
+
+        createDB()
         conn = sqlite3.connect('semantic_similarity.db')
         cursor = conn.cursor()
 
@@ -67,33 +68,14 @@ def logout():
     session.pop('user_id', None)  # Removing user_id from session
     return redirect(url_for('login'))
 
-# @app.route('/adminPanel', methods=['GET', 'POST'])
-# @login_required
-# def adminPanel():
-#     if request.method == 'POST':
-#         # Retrieve how many words were added
-#         word_count = int(request.form.get('wordCount', 0))
-#         target_words_list = [request.form.get(f'word{i}') for i in range(word_count)]
-#
-#         print(target_words_list)
-#
-#         stemmed_target_words = stem_words(target_words_list)
-#         word_list = wordlistOpentxt()
-#         try:
-#             precompute_rankings(stemmed_target_words, word_list)
-#             flash('Rankings computed successfully!', 'success')
-#         except Exception as e:
-#             flash(f'An error occurred: {e}', 'danger')
-#
-#     return render_template('adminPanel.html')
 
 @app.route('/adminPanel', methods=['GET', 'POST'])
 @login_required
 def adminPanel():
+    all_target_words = get_all_target_words()
     if request.method == 'POST':
         word_count = int(request.form.get('wordCount', 0))
         target_words_list = [request.form.get(f'word{i}') for i in range(word_count) if request.form.get(f'word{i}')]
-        print(target_words_list)
         if not target_words_list:
             flash('No words entered. Please add words before submitting.', 'danger')
             return redirect(url_for('adminPanel'))
@@ -102,15 +84,17 @@ def adminPanel():
         word_list = wordlistOpentxt()
         try:
             model_load_time, computation_time = precompute_rankings(stemmed_target_words, word_list)
-            flash(f'Model loaded in {model_load_time:.2f} seconds.', 'info')
-            flash(f'Rankings computed successfully in {computation_time:.2f} seconds!', 'success')
+            return render_template('adminPanel.html', model_load_time=model_load_time,
+                                   computation_time=computation_time, all_target_words=all_target_words)
+
         except Exception as e:
             flash(f'An error occurred: {e}', 'danger')
 
-    return render_template('adminPanel.html')
+    return render_template('adminPanel.html', all_target_words=all_target_words)
 
 @app.route('/', methods=['GET'])
 def index():
+
     conn = sqlite3.connect('semantic_similarity.db')
     cursor = conn.cursor()
     # games are fetched in ascending order by target_id

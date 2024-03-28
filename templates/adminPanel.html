@@ -22,7 +22,7 @@
 {#    </form>#}
 {#</div>#}
 
-    <div class="container">
+    <div class="container mt-5">
     <form id="wordForm" method="POST" onsubmit="showLoading()">
         <div class="mb-3">
             <label for="wordCount" class="form-label">أدخل عدد الكلمات التي تريد حساب ترتيبها وإضافتها إلى اللعبة</label>
@@ -33,6 +33,29 @@
         <button type="submit" class="btn btn-primary mt-3" id="submitBtn" style="display: none;">إضافة</button>
     </form>
 </div>
+    <br>
+<br>
+    <div class="container mt5">
+    <table class="table table-dark table-striped">
+  <thead>
+    <tr>
+      <th>الرقم</th>
+      <th>الكلمة</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if all_target_words %}
+    {%  for target_id, target_text in all_target_words %}
+    <tr class="{{ 'table-primary' if target_id == session.get('target_id', None) else '' }}">
+      <td>{{ target_id }}</td>
+      <td>{{ target_text }}</td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+
+  </tbody>
+</table>
+    </div>
 
     <script>
         function createWordInputs() {
