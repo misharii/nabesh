@@ -4,7 +4,6 @@
 # app.py
 from flask import Flask, request, render_template, session, redirect, url_for, flash
 from functools import wraps
-# from flask_session import Session
 from precompute import *
 import sqlite3
 from datetime import datetime

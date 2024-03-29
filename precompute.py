@@ -58,65 +58,82 @@ def load_model(modelPath='model/cc.ar.300.bin/cc.ar.300.bin'):
         model = fasttext.load_model(modelPath)
         end_loading_model = time.time()
         load_time = end_loading_model - begin_loading_model
-        print(f"Loading the model completed in {load_time:.2f} seconds")
-        flash(f'Loading the model completed in {load_time:.2f} seconds', 'info')
+        flash(f'اكتمل تحميل نموذج "fasttext" في:{load_time:.2f} ثانية ', 'info')
     else:
         load_time   = 0  # Model was already loaded
     return model, load_time
 
 
+
+
+def insert_target_word_with_rank_get_id(cursor, target_word):
+    # Insert or ignore the target word in the 'target' table
+    cursor.execute('INSERT OR IGNORE INTO target (target_text) VALUES (?)', (target_word,))
+    # Retrieve the ID of the target word
+    cursor.execute('SELECT target_id FROM target WHERE target_text = ?', (target_word,))
+    target_id = cursor.fetchone()[0]
+
+    # Insert or ignore the target word in the 'words' table
+    cursor.execute('INSERT OR IGNORE INTO words (word_text) VALUES (?)', (target_word,))
+    # Retrieve the ID of the word from 'words' table
+    cursor.execute('SELECT word_id FROM words WHERE word_text = ?', (target_word,))
+    word_id = cursor.fetchone()[0]
+    # Insert or replace the ranking for the target word with rank 1
+    cursor.execute('REPLACE INTO rankings (word_id, target_id, ranking) VALUES (?, ?, 1)', (word_id, target_id))
+
+    return target_id
+
+
+def cosine_similarity_sorted(model, target_word, words, target_embedding):
+    similarities = []
+    for word in [w for w in words if w != target_word]:
+        word_embedding = model.get_word_vector(word)
+        similarity = np.dot(target_embedding, word_embedding) / (np.linalg.norm(target_embedding) * np.linalg.norm(word_embedding))
+        similarities.append((word, similarity))
+    similarities.sort(key=lambda x: x[1], reverse=True)
+    return similarities
+
+def insert_words_with_rankings(cursor, similarities, target_id, start_rank=2):
+    for rank, (word, _) in enumerate(similarities, start=start_rank):
+        cursor.execute('INSERT OR IGNORE INTO words (word_text) VALUES (?)', (word,))
+        cursor.execute('SELECT word_id FROM words WHERE word_text = ?', (word,))
+        word_id = cursor.fetchone()[0]
+        cursor.execute('REPLACE INTO rankings (word_id, target_id, ranking) VALUES (?, ?, ?)', (word_id, target_id, rank))
+
+
 def precompute_rankings(target_words, words, db_path='semantic_similarity.db'):
-    model, model_load_time = load_model()  # Now captures load time as well
+    model, model_load_time = load_model()  # Load fasttext for embedding calculation
+    start_time = time.time()
+    createDB(db_path)  # Initialize the database
+    conn = sqlite3.connect(db_path)  # Connect to the database
+    cursor = conn.cursor()  # Create a database cursor for executing SQL commands
 
-    start_time = time.time()  # Start timing
-    createDB(db_path)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Convert target_words to a list if it's a single string
+    # Ensure target_words is a list
     if isinstance(target_words, str):
         target_words = [target_words]
 
-    for target_word in target_words:
-        # Insert or ignore the target word and get its ID
-        cursor.execute('INSERT OR IGNORE INTO target (target_text) VALUES (?)', (target_word,))
-        cursor.execute('SELECT target_id FROM target WHERE target_text = ?', (target_word,))
-        target_id = cursor.fetchone()[0]
+    for target_word in target_words:  # Iterate through each target word
 
-        # Compute embedding for the target word
+        # Insert the target word and get its unique ID from the database
+        target_id = insert_target_word_with_rank_get_id(cursor, target_word)
+
+        # Compute the embedding vector for the target word using the model
         target_embedding = model.get_word_vector(target_word)
 
-        # Directly insert the target word with rank 1
-        cursor.execute('INSERT OR IGNORE INTO words (word_text) VALUES (?)', (target_word,))
-        cursor.execute('SELECT word_id FROM words WHERE word_text = ?', (target_word,))
-        target_word_id = cursor.fetchone()[0]
-        cursor.execute('REPLACE INTO rankings (word_id, target_id, ranking) VALUES (?, ?, 1)', (target_word_id, target_id))
+        # Compute and sort similarities of all other words to the target word
+        similarities = cosine_similarity_sorted(model, target_word, words, target_embedding)
 
-        # Compute similarity for each non-target word and append
-        similarities = []
-        for word in [w for w in words if w != target_word]:
-            word_embedding = model.get_word_vector(word)
-            similarity = np.dot(target_embedding, word_embedding) / (np.linalg.norm(target_embedding) * np.linalg.norm(word_embedding))
-            similarities.append((word, similarity))
+        # Insert words and their similarity rankings into the database
+        insert_words_with_rankings(cursor, similarities, target_id)
 
-        # Sort by similarity score in descending order
-        similarities.sort(key=lambda x: x[1], reverse=True)
-
-        # Insert non-target words starting from rank 2
-        for rank, (word, _) in enumerate(similarities, start=2):  # Start enumeration from 2
-            cursor.execute('INSERT OR IGNORE INTO words (word_text) VALUES (?)', (word,))
-            cursor.execute('SELECT word_id FROM words WHERE word_text = ?', (word,))
-            word_id = cursor.fetchone()[0]
-            cursor.execute('REPLACE INTO rankings (word_id, target_id, ranking) VALUES (?, ?, ?)', (word_id, target_id, rank))
-
-    conn.commit()
-    conn.close()
+    conn.commit()  # Commit all database transactions
+    conn.close()  # Close the database connection
     end_time = time.time()  # End timing
     computation_time = end_time - start_time
-    print(f"Ranking completed in {computation_time:.2f} seconds for targets: {target_words}")
-    flash(f'Ranking completed in {computation_time:.2f} seconds for targets: {target_words}', 'success')
+    flash(f'تم الانتهاء من الترتيب في{computation_time:.2f} ثانية للكلمات : {target_words} ', 'success')
 
     return model_load_time, computation_time
+
 
 def wordlistOpentxt(wordlistPath='wordlist/ar-wordlist-stemmed.txt'):
     word_list = []
