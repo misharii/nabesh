@@ -34,7 +34,7 @@ class ArabicRootFinder:
 
 
 if __name__ == "__main__":
-    input_file_path = 'wordlist/ar-wordlist-unstemmed.txt'  # Your original wordlist file path
-    output_file_path = 'wordlist/ar-wordlist-stemmed.txt'  # File path to save the stemmed and deduplicated wordlist
+    input_file_path = '/Users/mohammedalsowelim/Downloads/for_nbsh/vocabs/arabert_vocab.txt'  # Your original wordlist file path
+    output_file_path = '/Users/mohammedalsowelim/Downloads/for_nbsh/vocabs/arabert_vocabAfterStem.txt'  # File path to save the stemmed and deduplicated wordlist
     root_finder = ArabicRootFinder()
     root_finder.stem_and_deduplicate_wordlist(input_file_path, output_file_path)

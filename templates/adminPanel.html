@@ -1,93 +1,159 @@
 {% extends "layout.html" %}
 
 {% block title %}صفحة الإدارة{% endblock %}
-
 {% block header %}صفحة الإدارة{% endblock %}
 
 {% block content %}
 
-
-
-
-{#     <div class="container">#}
-{#    <!-- Word Count Input + Dynamic Word Inputs inside the form -->#}
-{#    <form id="wordForm" method="POST">#}
-{#        <div class="mb-3">#}
-{#            <label for="wordCount" class="form-label">أدخل عدد الكلمات التي تريد حساب ترتيبها وإضافتها إلى اللعبة</label>#}
-{#            <input type="number" class="form-control" id="wordCount" name="wordCount" min="1" oninput="createWordInputs()">#}
-{#        </div>#}
-{##}
-{#        <div id="wordInputs"></div> <!-- Dynamic Word Inputs will be inserted here -->#}
-{#        <button type="submit" class="btn btn-primary mt-3" id="submitBtn" style="display: none;">اضافة</button>#}
-{#    </form>#}
-{#</div>#}
-
-    <div class="container mt-5">
+<!-- Add Words Form -->
+<div class="container mt-5">
     <form id="wordForm" method="POST" onsubmit="showLoading()">
         <div class="mb-3">
             <label for="wordCount" class="form-label">أدخل عدد الكلمات التي تريد حساب ترتيبها وإضافتها إلى اللعبة</label>
             <input type="number" class="form-control" id="wordCount" name="wordCount" min="1" oninput="createWordInputs()">
         </div>
 
-        <div id="wordInputs"></div> <!-- Dynamic Word Inputs will be inserted here -->
+        <div id="wordInputs"></div>
         <button type="submit" class="btn btn-primary mt-3" id="submitBtn" style="display: none;">إضافة</button>
     </form>
 </div>
-    <br>
-<br>
-    <div class="container mt5">
-    <table class="table table-dark table-striped">
-  <thead>
-    <tr>
-      <th>الرقم</th>
-      <th>الكلمة</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% if all_target_words %}
-    {%  for target_id, target_text in all_target_words %}
-    <tr class="{{ 'table-primary' if target_id == session.get('target_id', None) else '' }}">
-      <td>{{ target_id }}</td>
-      <td>{{ target_text }}</td>
-    </tr>
-    {% endfor %}
-    {% endif %}
 
-  </tbody>
-</table>
+<!-- Toast Notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="deleteToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                تم حذف الكلمة بنجاح!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
     </div>
+</div>
 
-    <script>
-        function createWordInputs() {
-            const count = document.getElementById('wordCount').value;
-            const wordInputs = document.getElementById('wordInputs');
-            wordInputs.innerHTML = ''; // Clear previous inputs
+<br><br>
 
-            if (count > 0) {
-                document.getElementById('submitBtn').style.display = 'block'; // Show submit button
-            } else {
-                document.getElementById('submitBtn').style.display = 'none'; // Hide submit button
-            }
+<!-- Word List Table -->
+<div class="container mt-5">
+    <table class="table table-dark table-striped">
+        <thead>
+            <tr>
+                <th>الرقم</th>
+                <th>الكلمة</th>
+                <th>أفضل 10 كلمات</th>
+                <th>حذف</th>
+            </tr>
+        </thead>
+        <tbody id="wordTableBody">
+            {% for target_id, target_text in all_target_words %}
+            <tr id="word-row-{{ target_id }}">
+                <td>{{ loop.index }}</td>
+                <td>{{ target_text }}</td>
+                <td>
+                    <!-- Toggle Button for Collapsible Top 10 Words -->
+                    <button class="btn btn-info mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ target_id }}" aria-expanded="false" aria-controls="collapse{{ target_id }}">
+                        عرض الكلمات
+                    </button>
+                    <div class="collapse mt-2" id="collapse{{ target_id }}">
+                        <table class="table table-bordered table-light">
+                            <thead>
+                                <tr>
+                                    <th>الكلمة</th>
+                                    <th>الترتيب</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for word, rank in top_words_dict[target_id] %}
+                                <tr>
+                                    <td>{{ word | safe }}</td>
+                                    <td>{{ rank | safe }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2">لا توجد كلمات</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="text-end">
+                            <button class="btn btn-secondary btn-sm" onclick="closeCollapse('{{ target_id }}')">إغلاق</button>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <button onclick="deleteWord({{ target_id }}, this)" class="btn btn-danger">حذف</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-            for (let i = 0; i < count; i++) {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.name = 'word' + i;
-                input.placeholder = 'كلمة ' + (i + 1);
-                input.className = 'form-control mt-2';
-                input.required = true;
-                wordInputs.appendChild(input);
-            }
+<script>
+    function createWordInputs() {
+        const count = document.getElementById('wordCount').value;
+        const wordInputs = document.getElementById('wordInputs');
+        wordInputs.innerHTML = '';
+
+        if (count > 0) {
+            document.getElementById('submitBtn').style.display = 'block';
+        } else {
+            document.getElementById('submitBtn').style.display = 'none';
         }
-        function showLoading() {
-    const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = true; // Disable the button to prevent multiple submissions
-    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> جاري الإضافة...';
-    // You might not need to manually revert this if the page reloads or navigates away after form submission.
-    // If the form submission is handled asynchronously, you'd want to revert this once the operation is complete.
-}
-    </script>
 
+        for (let i = 0; i < count; i++) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'word' + i;
+            input.placeholder = 'كلمة ' + (i + 1);
+            input.className = 'form-control mt-2';
+            input.required = true;
+            wordInputs.appendChild(input);
+        }
+    }
 
+    function showLoading() {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> جاري الإضافة...';
+    }
+
+    function deleteWord(targetId, button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> جاري الحذف...';
+
+        fetch(`/delete_word/${targetId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                showToast();
+                setTimeout(() => {
+                    location.reload();  // ✅ Reload page to refresh numbering and data
+                }, 800);
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert(`Error: ${error}`);
+        });
+    }
+
+    function showToast() {
+        const toastElement = document.getElementById('deleteToast');
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+    }
+
+    function closeCollapse(targetId) {
+        const collapseEl = document.getElementById(`collapse${targetId}`);
+        if (collapseEl && collapseEl.classList.contains('show')) {
+            new bootstrap.Collapse(collapseEl, {
+                toggle: true
+            }).hide();
+        }
+    }
+</script>
 
 {% endblock %}

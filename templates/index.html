@@ -1,44 +1,36 @@
 {% extends "layout.html" %}
 
 {% block title %}لعبة نابش{% endblock %}
-
 {% block header %}لعبة نابش{% endblock %}
 
 {% block content %}
 
-
-
-
-        <!-- Guess Form -->
-        <form action="/guess" method="POST" class="mb-3">
-       <div class="mb-3">
+<!-- Guess Form -->
+<form action="/guess" method="POST" class="mb-3">
+    <div class="mb-3">
         <label for="gameSelectDropdown" class="form-label">اختر رقم اللعبة</label>
         <select id="gameSelectDropdown" name="target_id" class="form-control" onchange="selectGame()">
             <option value="">اختر لعبة</option>
             {% for target_id, target_text in games %}
-            <option value="{{ target_id }}" {{ 'selected' if target_id == session.get('target_id', None) else '' }} >{{ target_id }}</option>
+            <option value="{{ target_id }}" {{ 'selected' if target_id == session.get('target_id', None) else '' }}>{{ target_id }}</option>
             {% endfor %}
         </select>
     </div>
 
+    <div class="mb-3">
+        <input type="text" name="guess" class="form-control" placeholder="أدخل تخمينك هنا">
+    </div>
 
+    <div class="mb-3 d-flex justify-content-md-start btn-group" role="group" style="direction: ltr; gap: .5rem;">
+        <button type="submit" formaction="/reset" class="btn btn-danger">حذف</button>
+        <button type="submit" class="btn btn-success">تخمين</button>
+        <button type="submit" formaction="/help_me" class="btn btn-warning">ساعدني</button> <!-- 🆕 زر المساعدة -->
+    </div>
+</form>
 
-
-
-            <div class="mb-3">
-                <input type="text" name="guess" class="form-control" placeholder="أدخل تخمينك هنا" >
-            </div>
-           <div class="mb-3 d-flex justify-content-md-start btn-group" role="group" style="direction: ltr; gap: .5rem;">
-    <button type="submit" formaction="/reset" class="btn btn-danger">حذف</button>
-    <button type="submit" class="btn btn-success">تخمين</button>
-</div>
-        </form>
-
-
-        {% if message %}
-{#   you can add  'alert-game'  class to control the bg and font colors of the alert  #}
-            <div class="alert  alert-info">{{ message }}</div>
-        {% endif %}
+{% if message %}
+    <div class="alert alert-info">{{ message }}</div>
+{% endif %}
 
 {% if session.recent_guess and session.recent_ranking %}
 <div class="progress" style="width: 100%; position: relative;">
@@ -47,12 +39,12 @@
          style="
  width: {% if session.recent_ranking <= 1250 %}{{ 100 - ((session.recent_ranking - 1) / 1250 * 100) }}%{% else %}1%{% endif %};
     {% if session.recent_ranking <= 250 %}background-color: #28a745;
-                                {% elif session.recent_ranking <= 500 %}background-color: #80c904;
-                                {% elif session.recent_ranking <= 750 %}background-color: #ffbc44;
-                                {% elif session.recent_ranking <= 1000 %}background-color: #ff7700;
-                                {% elif session.recent_ranking <= 1250 %}background-color: #FF4500;
-                                {% else %}background-color: #DC3545;
-                                {% endif %}"
+    {% elif session.recent_ranking <= 500 %}background-color: #80c904;
+    {% elif session.recent_ranking <= 750 %}background-color: #ffbc44;
+    {% elif session.recent_ranking <= 1000 %}background-color: #ff7700;
+    {% elif session.recent_ranking <= 1250 %}background-color: #FF4500;
+    {% else %}background-color: #DC3545;
+    {% endif %}"
          aria-valuenow="{{ session.recent_ranking }}"
          aria-valuemin="0"
          aria-valuemax="1250">
@@ -64,63 +56,47 @@
 </div>
 {% endif %}
 
-
-
-        <ul class="list-group guesses-list justify-content-end pull-right container mt-3" style="text-align: right">
-            {% for guess, ranking in guesses %}
-
-
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-    <div class="progress" style="width: 100%; position: relative;">
-        <div class="progress-bar overflow-visible"
-             role="progressbar"
-             style="
-     width: {% if ranking <= 1250 %}{{ 100 - ((ranking - 1) / 1250 * 100) }}%{% else %}1%{% endif %};
-        {% if ranking <= 250 %}background-color: #28a745;
-                                    {% elif ranking <= 500 %}background-color: #80c904;
-                                    {% elif ranking <= 750 %}background-color: #ffbc44;
-                                    {% elif ranking <= 1000 %}background-color: #ff7700;
-                                    {% elif ranking <= 1250 %}background-color: #FF4500;
-                                    {% else %}background-color: #DC3545;
-                                    {% endif %}"
-             aria-valuenow="{{ ranking - 5 }}"
-             aria-valuemin="0"
-             aria-valuemax="1250">
-            <div class="d-flex justify-content-between w-100">
-                <span  style="color: white;">&nbsp;{{ guess  }}&nbsp; </span>
-                <span class="ranking-badge" style="color: white;"> &nbsp;{{  ranking }}&nbsp;</span>
+<ul class="list-group guesses-list justify-content-end pull-right container mt-3" style="text-align: right">
+    {% for guess, ranking in guesses %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div class="progress" style="width: 100%; position: relative;">
+            <div class="progress-bar overflow-visible"
+                 role="progressbar"
+                 style="width: {{ 100 - ((ranking - 1) / 1250 * 100) }}%; background-color: #28a745;"
+                 aria-valuenow="{{ ranking }}"
+                 aria-valuemin="0"
+                 aria-valuemax="1250">
+                <div class="d-flex justify-content-between w-100">
+                    <span style="color: white;">&nbsp;{{ guess }}&nbsp;</span>
+                    <span style="color: white;">&nbsp;{{ ranking }}&nbsp;</span>
+                </div>
             </div>
         </div>
-    </div>
-</li>
+    </li>
+    {% endfor %}
+</ul>
 
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- Winner Modal -->
-<div class="modal fade " style="background-color: #121212;" id="winnerModal" tabindex="-1" aria-labelledby="winnerModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered " >
-    <div class="modal-content" style="background-color: #343a40;">
+<!-- Winner Modal -->
+<div class="modal fade" id="winnerModal" tabindex="-1" aria-labelledby="winnerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background-color: #343a40; color: white;">
       <div class="modal-header">
         <h5 class="modal-title" id="winnerModalLabel">تهانينا!</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-          <div class="tenor-gif-embed" style="color: white" data-postid="18892078" data-share-method="host" data-aspect-ratio="0.78125" data-width="100%"><a href="https://tenor.com/view/saudi-dance-saudi-dance-saudi-moment-gif-18892078">Saudi Dance GIF</a>from <a href="https://tenor.com/search/saudi-gifs">Saudi GIFs</a></div> <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
-          <br>
-          {% if guesses %}
-        لقد فزت! الكلمة هي {{ guesses[0][0] }}.
-          {% endif %}
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+      <div class="modal-body text-center">
+        <p>لقد ربحت! 🎉</p>
+        <div class="tenor-gif-embed" data-postid="18892078" data-share-method="host" data-aspect-ratio="0.78125" data-width="100%">
+          <a href="https://tenor.com/view/saudi-dance-saudi-dance-saudi-moment-gif-18892078">Saudi Dance GIF</a> from
+          <a href="https://tenor.com/search/saudi-gifs">Saudi GIFs</a>
+        </div>
+        <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
       </div>
     </div>
   </div>
 </div>
 
- <script>
+<script>
     function selectGame() {
         var selectedGameId = document.getElementById('gameSelectDropdown').value;
         if (selectedGameId) {
@@ -128,42 +104,13 @@
         }
     }
 
-// Use the Bootstrap 5 way of showing modals
-document.addEventListener('DOMContentLoaded', function() {
-    // The new Bootstrap 5 way to create a modal programmatically
-    var winnerModal = new bootstrap.Modal(document.getElementById('winnerModal'), {
-        keyboard: false
-    });
-
-    const guessForm = document.querySelector('.mb-3'); // Make sure this selector uniquely identifies your form
-    const guessInput = guessForm.querySelector('input[name="guess"]');
-
-    guessInput.addEventListener('keypress', function(event) {
-        // Check if the key pressed is the Enter key
-        if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent the default form submit action
-            guessForm.action = '/guess'; // Set the form's action to the guess endpoint
-            guessForm.submit(); // Submit the form
-        }
-    });
-
-    // Wait until all elements are loaded
-    window.onload = function() {
-        // Check if there's any ranking with 1
-        let hasRankingOne = false;
-        document.querySelectorAll('.ranking-badge').forEach(function(element) {
-            if (element.textContent.trim() === '1') {
-                hasRankingOne = true;
-            }
-        });
-
-        // If there is a ranking of 1, show the modal
-        if (hasRankingOne) {
-            winnerModal.show();
-        }
-    };
-});
+    // Show winner modal if user won
+    window.onload = function () {
+        {% if session.get('winner') %}
+        var winnerModal = new bootstrap.Modal(document.getElementById('winnerModal'));
+        winnerModal.show();
+        {% endif %}
+    }
 </script>
-
 
 {% endblock %}
